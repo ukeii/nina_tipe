@@ -40,3 +40,8 @@ DUREE_AFFICHAGE_RESULTAT = 500
 # Nombre de cibles avant d'afficher l'interface de fin
 NOMBRE_CIBLES_MAX = 24
 
+# Paramètres de déviation du curseur
+CIBLE_DEBUT_DEVIATION = 10  # Numéro de la cible à partir de laquelle appliquer la déviation
+ANGLE_DEVIATION = 30  # Angle de déviation en degrés vers la droite
+DISTANCE_DEVIATION = 20  # Distance en pixels pour la déviation
+

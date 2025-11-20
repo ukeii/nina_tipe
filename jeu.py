@@ -26,7 +26,7 @@ class Jeu:
         # Positionner le curseur au centre du cercle au démarrage du jeu
         pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         
-        # Position précédente du curseur pour détecter la traversée
+        # Position précédente du curseur pour détecter la traversée (position réelle, pas déviée)
         self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         
         # Créer la cible initiale
@@ -110,7 +110,7 @@ class Jeu:
         Détecte si le curseur a traversé le cercle imaginaire
         
         Args:
-            position_actuelle: Tuple (x, y) de la position actuelle du curseur
+            position_actuelle: Tuple (x, y) de la position actuelle du curseur (déviée)
             
         Returns:
             Tuple (x, y) du point de traversée si traversée détectée, None sinon
@@ -118,7 +118,11 @@ class Jeu:
         if self.en_affichage_resultat:
             return None
         
-        x0, y0 = self.position_curseur_precedente
+        # Utiliser la position précédente déviée pour la détection
+        if not hasattr(self, 'position_curseur_precedente_deviée'):
+            self.position_curseur_precedente_deviée = self.position_curseur_precedente
+        
+        x0, y0 = self.position_curseur_precedente_deviée
         x1, y1 = position_actuelle
         if x0 == x1 and y0 == y1:
             return None
@@ -201,23 +205,31 @@ class Jeu:
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             return
         
-        # Obtenir la position actuelle du curseur
-        position_actuelle = pygame.mouse.get_pos()
+        # Obtenir la position actuelle du curseur (position réelle)
+        position_reelle = pygame.mouse.get_pos()
+        
+        # Appliquer la déviation au mouvement si nécessaire
+        position_actuelle = self.appliquer_deviation_mouvement(position_reelle)
+        
+        # Stocker la position précédente déviée pour la détection de traversée
+        if not hasattr(self, 'position_curseur_precedente_deviée'):
+            self.position_curseur_precedente_deviée = self.position_curseur_precedente
         
         # Enregistrer le chemin du curseur si on n'est pas en affichage de résultat
         if not self.en_affichage_resultat and self.enregistrement_chemin:
-            # Ajouter la position actuelle au chemin (éviter les doublons si le curseur ne bouge pas)
+            # Ajouter la position déviée au chemin (éviter les doublons si le curseur ne bouge pas)
             if (not self.chemin_actuel or 
                 position_actuelle != self.chemin_actuel[-1]):
                 self.chemin_actuel.append(position_actuelle)
         
-        # Détecter la traversée du cercle
+        # Détecter la traversée du cercle avec la position déviée
         point_traversee = self.detecter_traversee_cercle(position_actuelle)
         if point_traversee:
             self.gerer_traversee(point_traversee)
         
-        # Mettre à jour la position précédente
-        self.position_curseur_precedente = position_actuelle
+        # Mettre à jour les positions précédentes
+        self.position_curseur_precedente = position_reelle
+        self.position_curseur_precedente_deviée = position_actuelle
         
         # Vérifier si on doit terminer l'affichage du résultat
         if self.en_affichage_resultat:
@@ -237,9 +249,10 @@ class Jeu:
                     self.point_traversee = None
                     self.cible_precedente = None
                     
-                    # Repositionner le curseur au centre du cercle
+                    # Repositionner le curseur au centre
                     pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
                     self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+                    self.position_curseur_precedente_deviée = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
                     
                     # Démarrer l'enregistrement du chemin pour la nouvelle tentative
                     self.enregistrement_chemin = True
@@ -322,6 +335,7 @@ class Jeu:
         # Repositionner le curseur au centre
         pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+        self.position_curseur_precedente_deviée = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         
         # Réinitialiser les données
         self.donnees_chemins = []
@@ -331,6 +345,58 @@ class Jeu:
         # Démarrer l'enregistrement pour la première cible
         self.enregistrement_chemin = True
         self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
+    
+    def appliquer_deviation_mouvement(self, position_reelle):
+        """
+        Applique une déviation de 30 degrés vers la droite au mouvement du curseur
+        à partir de la 10e cible
+        
+        Args:
+            position_reelle: Tuple (x, y) de la position réelle du curseur
+            
+        Returns:
+            Tuple (x, y) de la position déviée
+        """
+        # Si on n'a pas encore atteint la cible de début de déviation, pas de déviation
+        if self.nombre_cibles < config.CIBLE_DEBUT_DEVIATION:
+            return position_reelle
+        
+        # S'assurer que la position précédente déviée existe
+        if not hasattr(self, 'position_curseur_precedente_deviée'):
+            self.position_curseur_precedente_deviée = self.position_curseur_precedente
+        
+        # Calculer le vecteur de mouvement depuis la position RÉELLE précédente
+        x_reel, y_reel = position_reelle
+        x_prec_reel, y_prec_reel = self.position_curseur_precedente
+        
+        # Vecteur de mouvement réel
+        dx_reel = x_reel - x_prec_reel
+        dy_reel = y_reel - y_prec_reel
+        
+        # Si pas de mouvement, retourner la position précédente déviée
+        if dx_reel == 0 and dy_reel == 0:
+            return self.position_curseur_precedente_deviée
+        
+        # Calculer l'angle du mouvement réel
+        angle_mouvement = math.atan2(dy_reel, dx_reel)
+        
+        # Ajouter la déviation de 30 degrés vers la droite (rotation dans le sens horaire)
+        angle_devié = angle_mouvement + math.radians(config.ANGLE_DEVIATION)
+        
+        # Calculer la longueur du vecteur de mouvement réel
+        longueur = math.sqrt(dx_reel * dx_reel + dy_reel * dy_reel)
+        
+        # Calculer le nouveau vecteur dévié
+        dx_devié = longueur * math.cos(angle_devié)
+        dy_devié = longueur * math.sin(angle_devié)
+        
+        # Position déviée = position précédente DÉVIÉE + vecteur dévié
+        # C'est important : on part de la position déviée précédente pour que la déviation s'accumule
+        x_prec_devié, y_prec_devié = self.position_curseur_precedente_deviée
+        x_devié = int(x_prec_devié + dx_devié)
+        y_devié = int(y_prec_devié + dy_devié)
+        
+        return (x_devié, y_devié)
     
     def generer_pdf_donnees(self, nom_fichier=None):
         """Génère le PDF avec les données des chemins"""
