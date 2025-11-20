@@ -8,6 +8,7 @@ import config
 from cible import Cible
 from interface_fin import InterfaceFin
 from generateur_pdf import GenerateurPDF
+from dialogue_nom_fichier import DialogueNomFichier
 
 
 class Jeu:
@@ -59,6 +60,11 @@ class Jeu:
         
         # Interface de fin de partie
         self.interface_fin = InterfaceFin(ecran)
+        
+        # Dialogue et pop-up
+        self.dialogue_actif = None
+        self.popup_succes = None
+        self.temps_popup = 0
     
     def gerer_evenements(self):
         """Gère les événements du jeu"""
@@ -66,17 +72,38 @@ class Jeu:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                if self.dialogue_actif:
+                    # Passer l'événement au dialogue
+                    resultat = self.dialogue_actif.gerer_evenement(event)
+                    if resultat == "ok":
+                        nom_fichier = self.dialogue_actif.obtenir_nom_fichier()
+                        self.dialogue_actif = None
+                        if nom_fichier:
+                            self.generer_pdf_donnees(nom_fichier)
+                    elif resultat == "annuler":
+                        self.dialogue_actif = None
+                elif event.key == pygame.K_ESCAPE:
                     self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1 and self.fin_de_partie:  # Clic gauche pendant la fin de partie
+                if self.dialogue_actif:
+                    # Gérer les événements du dialogue
+                    resultat = self.dialogue_actif.gerer_evenement(event)
+                    if resultat == "ok":
+                        nom_fichier = self.dialogue_actif.obtenir_nom_fichier()
+                        self.dialogue_actif = None
+                        if nom_fichier:
+                            self.generer_pdf_donnees(nom_fichier)
+                    elif resultat == "annuler":
+                        self.dialogue_actif = None
+                elif event.button == 1 and self.fin_de_partie:  # Clic gauche pendant la fin de partie
                     action = self.interface_fin.gerer_clic(event.pos)
                     if action == "recommencer":
                         self.reinitialiser_jeu()
                     elif action == "quitter":
                         self.running = False
                     elif action == "recuperer_donnees":
-                        self.generer_pdf_donnees()
+                        # Ouvrir le dialogue pour demander le nom
+                        self.dialogue_actif = DialogueNomFichier(self.ecran)
     
     def detecter_traversee_cercle(self, position_actuelle):
         """
@@ -164,6 +191,9 @@ class Jeu:
         """Met à jour l'état du jeu"""
         # Si fin de partie, gérer le curseur au survol des boutons
         if self.fin_de_partie:
+            if self.dialogue_actif:
+                # Ne pas changer le curseur pendant le dialogue
+                return
             position_souris = pygame.mouse.get_pos()
             if self.interface_fin.est_sur_bouton(position_souris):
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
@@ -251,6 +281,14 @@ class Jeu:
         # Si fin de partie, dessiner l'interface
         if self.fin_de_partie:
             self.interface_fin.dessiner()
+        
+        # Dessiner le dialogue si actif
+        if self.dialogue_actif:
+            self.dialogue_actif.dessiner()
+        
+        # Dessiner la pop-up de succès si active
+        if self.popup_succes:
+            self.dessiner_popup_succes()
     
     def boucle_principale(self):
         """Boucle principale du jeu"""
@@ -294,12 +332,45 @@ class Jeu:
         self.enregistrement_chemin = True
         self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
     
-    def generer_pdf_donnees(self):
+    def generer_pdf_donnees(self, nom_fichier=None):
         """Génère le PDF avec les données des chemins"""
         if len(self.donnees_chemins) == 0:
             print("Aucune donnée à exporter")
             return
         
         generateur = GenerateurPDF()
-        generateur.generer_pdf(self.donnees_chemins)
-        print(f"PDF généré avec {len(self.donnees_chemins)} chemins")
+        chemin_fichier = generateur.generer_pdf(self.donnees_chemins, nom_fichier)
+        
+        if chemin_fichier:
+            # Afficher la pop-up de succès
+            self.popup_succes = True
+            self.temps_popup = pygame.time.get_ticks()
+            print(f"PDF généré avec {len(self.donnees_chemins)} chemins")
+        else:
+            print("Erreur lors de la génération du PDF")
+    
+    def dessiner_popup_succes(self):
+        """Dessine la pop-up de succès en haut à droite"""
+        # Vérifier si on doit encore afficher la pop-up (5 secondes)
+        temps_ecoule = pygame.time.get_ticks() - self.temps_popup
+        if temps_ecoule >= 5000:
+            self.popup_succes = None
+            return
+        
+        # Dimensions de la pop-up
+        largeur_popup = int(config.LARGEUR * 0.25)
+        hauteur_popup = int(config.HAUTEUR * 0.08)
+        x_popup = config.LARGEUR - largeur_popup - 20
+        y_popup = 20
+        
+        # Fond de la pop-up
+        popup_rect = pygame.Rect(x_popup, y_popup, largeur_popup, hauteur_popup)
+        pygame.draw.rect(self.ecran, config.VERT, popup_rect)
+        pygame.draw.rect(self.ecran, config.NOIR, popup_rect, 2)
+        
+        # Texte
+        taille_texte = int(config.HAUTEUR * 0.04)
+        font = pygame.font.Font(None, taille_texte)
+        texte = font.render("PDF créé avec succès", True, config.BLANC)
+        texte_rect = texte.get_rect(center=popup_rect.center)
+        self.ecran.blit(texte, texte_rect)
