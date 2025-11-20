@@ -6,6 +6,7 @@ import pygame
 import sys
 import config
 from cible import Cible
+from interface_fin import InterfaceFin
 
 
 class Jeu:
@@ -35,12 +36,19 @@ class Jeu:
         # Positionner immédiatement la cible sur le cercle pour varier les apparitions
         self.cible.generer_nouvelle_position_sur_cercle()
         
+        # Compteur de cibles
+        self.nombre_cibles = 1  # On commence à 1 car on a déjà créé la première cible
+        
         # État du jeu
         self.running = True
         self.en_affichage_resultat = False
         self.temps_debut_resultat = 0
         self.point_traversee = None  # Point (x, y) où le curseur a traversé la ligne
         self.cible_precedente = None  # Position de la cible précédente pour l'affichage
+        self.fin_de_partie = False  # Indique si on a atteint le nombre max de cibles
+        
+        # Interface de fin de partie
+        self.interface_fin = InterfaceFin(ecran)
     
     def gerer_evenements(self):
         """Gère les événements du jeu"""
@@ -50,6 +58,14 @@ class Jeu:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1 and self.fin_de_partie:  # Clic gauche pendant la fin de partie
+                    action = self.interface_fin.gerer_clic(event.pos)
+                    if action == "recommencer":
+                        self.reinitialiser_jeu()
+                    elif action == "quitter":
+                        self.running = False
+                    # action == "recuperer_donnees" ne fait rien pour le moment
     
     def detecter_traversee_cercle(self, position_actuelle):
         """
@@ -121,6 +137,10 @@ class Jeu:
     
     def mettre_a_jour(self):
         """Met à jour l'état du jeu"""
+        # Si fin de partie, ne pas mettre à jour le jeu
+        if self.fin_de_partie:
+            return
+        
         # Obtenir la position actuelle du curseur
         position_actuelle = pygame.mouse.get_pos()
         
@@ -136,18 +156,23 @@ class Jeu:
         if self.en_affichage_resultat:
             temps_ecoule = pygame.time.get_ticks() - self.temps_debut_resultat
             if temps_ecoule >= config.DUREE_AFFICHAGE_RESULTAT:
-                # Générer une nouvelle cible sur le cercle
-                self.cible.generer_nouvelle_position_sur_cercle()
-                print(f"Nouvelle cible à la position: x={self.cible.x}, y={self.cible.y}")
-                
-                # Réinitialiser l'état
-                self.en_affichage_resultat = False
-                self.point_traversee = None
-                self.cible_precedente = None
-                
-                # Repositionner le curseur au centre du cercle
-                pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
-                self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+                # Vérifier si on a atteint le nombre maximum de cibles
+                if self.nombre_cibles >= config.NOMBRE_CIBLES_MAX:
+                    self.fin_de_partie = True
+                else:
+                    # Générer une nouvelle cible sur le cercle
+                    self.cible.generer_nouvelle_position_sur_cercle()
+                    self.nombre_cibles += 1
+                    print(f"Nouvelle cible à la position: x={self.cible.x}, y={self.cible.y}")
+                    
+                    # Réinitialiser l'état
+                    self.en_affichage_resultat = False
+                    self.point_traversee = None
+                    self.cible_precedente = None
+                    
+                    # Repositionner le curseur au centre du cercle
+                    pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+                    self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
     
     def dessiner(self):
         """Dessine tous les éléments du jeu"""
@@ -181,6 +206,10 @@ class Jeu:
         else:
             # Mode normal : dessiner la cible actuelle
             self.cible.dessiner(self.ecran)
+        
+        # Si fin de partie, dessiner l'interface
+        if self.fin_de_partie:
+            self.interface_fin.dessiner()
     
     def boucle_principale(self):
         """Boucle principale du jeu"""
@@ -196,3 +225,21 @@ class Jeu:
         # Quitter pygame
         pygame.quit()
         sys.exit()
+    
+    def reinitialiser_jeu(self):
+        """Réinitialise le jeu pour recommencer"""
+        # Réinitialiser le compteur
+        self.nombre_cibles = 1
+        
+        # Réinitialiser l'état
+        self.en_affichage_resultat = False
+        self.point_traversee = None
+        self.cible_precedente = None
+        self.fin_de_partie = False
+        
+        # Générer une nouvelle cible
+        self.cible.generer_nouvelle_position_sur_cercle()
+        
+        # Repositionner le curseur au centre
+        pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+        self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)

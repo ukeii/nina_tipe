@@ -37,3 +37,6 @@ CURSEUR_Y_APRES_CLIC = None  # Sera calculée
 # Durée d'affichage du résultat (en millisecondes)
 DUREE_AFFICHAGE_RESULTAT = 500
 
+# Nombre de cibles avant d'afficher l'interface de fin
+NOMBRE_CIBLES_MAX = 24
+
