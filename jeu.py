@@ -7,6 +7,7 @@ import sys
 import config
 from cible import Cible
 from interface_fin import InterfaceFin
+from generateur_pdf import GenerateurPDF
 
 
 class Jeu:
@@ -39,6 +40,10 @@ class Jeu:
         # Compteur de cibles
         self.nombre_cibles = 1  # On commence à 1 car on a déjà créé la première cible
         
+        # Démarrer l'enregistrement du chemin pour la première cible
+        self.enregistrement_chemin = True
+        self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
+        
         # État du jeu
         self.running = True
         self.en_affichage_resultat = False
@@ -46,6 +51,11 @@ class Jeu:
         self.point_traversee = None  # Point (x, y) où le curseur a traversé la ligne
         self.cible_precedente = None  # Position de la cible précédente pour l'affichage
         self.fin_de_partie = False  # Indique si on a atteint le nombre max de cibles
+        
+        # Enregistrement des données pour le PDF
+        self.donnees_chemins = []  # Liste de dictionnaires avec chemin, cible, point_traversee
+        self.chemin_actuel = []  # Liste des positions du curseur pour la tentative actuelle
+        self.enregistrement_chemin = False  # Indique si on enregistre le chemin actuellement
         
         # Interface de fin de partie
         self.interface_fin = InterfaceFin(ecran)
@@ -65,7 +75,8 @@ class Jeu:
                         self.reinitialiser_jeu()
                     elif action == "quitter":
                         self.running = False
-                    # action == "recuperer_donnees" ne fait rien pour le moment
+                    elif action == "recuperer_donnees":
+                        self.generer_pdf_donnees()
     
     def detecter_traversee_cercle(self, position_actuelle):
         """
@@ -128,6 +139,20 @@ class Jeu:
         # Sauvegarder le point de traversée
         self.point_traversee = point_traversee
         
+        # Arrêter l'enregistrement du chemin et sauvegarder les données
+        if self.enregistrement_chemin:
+            # Ajouter le point de traversée au chemin
+            self.chemin_actuel.append(point_traversee)
+            # Sauvegarder les données de cette tentative
+            self.donnees_chemins.append({
+                'chemin': self.chemin_actuel.copy(),
+                'cible': (self.cible.x, self.cible.y),
+                'point_traversee': point_traversee
+            })
+            # Réinitialiser pour la prochaine tentative
+            self.chemin_actuel = []
+            self.enregistrement_chemin = False
+        
         # Activer l'affichage du résultat
         self.en_affichage_resultat = True
         self.temps_debut_resultat = pygame.time.get_ticks()
@@ -148,6 +173,13 @@ class Jeu:
         
         # Obtenir la position actuelle du curseur
         position_actuelle = pygame.mouse.get_pos()
+        
+        # Enregistrer le chemin du curseur si on n'est pas en affichage de résultat
+        if not self.en_affichage_resultat and self.enregistrement_chemin:
+            # Ajouter la position actuelle au chemin (éviter les doublons si le curseur ne bouge pas)
+            if (not self.chemin_actuel or 
+                position_actuelle != self.chemin_actuel[-1]):
+                self.chemin_actuel.append(position_actuelle)
         
         # Détecter la traversée du cercle
         point_traversee = self.detecter_traversee_cercle(position_actuelle)
@@ -178,6 +210,10 @@ class Jeu:
                     # Repositionner le curseur au centre du cercle
                     pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
                     self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+                    
+                    # Démarrer l'enregistrement du chemin pour la nouvelle tentative
+                    self.enregistrement_chemin = True
+                    self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
     
     def dessiner(self):
         """Dessine tous les éléments du jeu"""
@@ -248,3 +284,22 @@ class Jeu:
         # Repositionner le curseur au centre
         pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+        
+        # Réinitialiser les données
+        self.donnees_chemins = []
+        self.chemin_actuel = []
+        self.enregistrement_chemin = False
+        
+        # Démarrer l'enregistrement pour la première cible
+        self.enregistrement_chemin = True
+        self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
+    
+    def generer_pdf_donnees(self):
+        """Génère le PDF avec les données des chemins"""
+        if len(self.donnees_chemins) == 0:
+            print("Aucune donnée à exporter")
+            return
+        
+        generateur = GenerateurPDF()
+        generateur.generer_pdf(self.donnees_chemins)
+        print(f"PDF généré avec {len(self.donnees_chemins)} chemins")
