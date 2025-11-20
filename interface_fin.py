@@ -75,7 +75,7 @@ class InterfaceFin:
         # Bouton "Récupérer les données"
         pygame.draw.rect(self.ecran, config.VERT, self.bouton_donnees_rect)
         pygame.draw.rect(self.ecran, config.NOIR, self.bouton_donnees_rect, 3)
-        texte_donnees = self.font_bouton.render("Récupérer les données", True, config.BLANC)
+        texte_donnees = self.font_bouton.render("Données", True, config.BLANC)
         texte_rect = texte_donnees.get_rect(center=self.bouton_donnees_rect.center)
         self.ecran.blit(texte_donnees, texte_rect)
         
@@ -92,6 +92,21 @@ class InterfaceFin:
         texte_quitter = self.font_bouton.render("Quitter", True, config.BLANC)
         texte_rect = texte_quitter.get_rect(center=self.bouton_quitter_rect.center)
         self.ecran.blit(texte_quitter, texte_rect)
+    
+    def est_sur_bouton(self, position):
+        """
+        Vérifie si la position est sur un des boutons
+        
+        Args:
+            position: Tuple (x, y) de la position
+            
+        Returns:
+            True si la position est sur un bouton, False sinon
+        """
+        x, y = position
+        return (self.bouton_donnees_rect.collidepoint(x, y) or
+                self.bouton_recommencer_rect.collidepoint(x, y) or
+                self.bouton_quitter_rect.collidepoint(x, y))
     
     def gerer_clic(self, position_clic):
         """

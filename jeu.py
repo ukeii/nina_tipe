@@ -137,8 +137,13 @@ class Jeu:
     
     def mettre_a_jour(self):
         """Met à jour l'état du jeu"""
-        # Si fin de partie, ne pas mettre à jour le jeu
+        # Si fin de partie, gérer le curseur au survol des boutons
         if self.fin_de_partie:
+            position_souris = pygame.mouse.get_pos()
+            if self.interface_fin.est_sur_bouton(position_souris):
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+            else:
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             return
         
         # Obtenir la position actuelle du curseur

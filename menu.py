@@ -53,6 +53,25 @@ class Menu:
         texte_rect = texte_bouton.get_rect(center=bouton_rect.center)
         self.ecran.blit(texte_bouton, texte_rect)
     
+    def est_sur_bouton(self, position):
+        """
+        Vérifie si la position est sur le bouton Start
+        
+        Args:
+            position: Tuple (x, y) de la position
+            
+        Returns:
+            True si la position est sur le bouton, False sinon
+        """
+        x, y = position
+        bouton_rect = pygame.Rect(
+            self.bouton_x,
+            self.bouton_y,
+            self.bouton_largeur,
+            self.bouton_hauteur
+        )
+        return bouton_rect.collidepoint(x, y)
+    
     def est_clique_sur_bouton(self, position_clic):
         """
         Vérifie si le clic est sur le bouton Start
@@ -63,14 +82,7 @@ class Menu:
         Returns:
             True si le clic est sur le bouton, False sinon
         """
-        clic_x, clic_y = position_clic
-        bouton_rect = pygame.Rect(
-            self.bouton_x,
-            self.bouton_y,
-            self.bouton_largeur,
-            self.bouton_hauteur
-        )
-        return bouton_rect.collidepoint(clic_x, clic_y)
+        return self.est_sur_bouton(position_clic)
     
     def boucle_menu(self):
         """
@@ -92,6 +104,13 @@ class Menu:
                     if event.button == 1:  # Clic gauche
                         if self.est_clique_sur_bouton(event.pos):
                             return True
+            
+            # Gérer le curseur au survol du bouton
+            position_souris = pygame.mouse.get_pos()
+            if self.est_sur_bouton(position_souris):
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+            else:
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             
             self.dessiner()
             pygame.display.flip()
