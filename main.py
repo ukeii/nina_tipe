@@ -14,11 +14,16 @@ if __name__ == "__main__":
     # Obtenir les dimensions de l'écran et mettre à jour config
     config.LARGEUR, config.HAUTEUR = config.obtenir_dimensions_ecran()
     
-    # Mettre à jour les positions qui dépendent des dimensions
-    config.POSITION_Y_INITIALE = int(config.HAUTEUR * 0.15)
-    config.POSITION_X_INITIALE = config.LARGEUR // 2
-    config.CURSEUR_X_APRES_CLIC = config.LARGEUR // 2
-    config.CURSEUR_Y_APRES_CLIC = config.HAUTEUR - 50
+    # Définir le cercle imaginaire (centré et proportionnel à l'écran)
+    config.CERCLE_CENTRE_X = config.LARGEUR // 2
+    config.CERCLE_CENTRE_Y = config.HAUTEUR // 2
+    config.CERCLE_RAYON = int(min(config.LARGEUR, config.HAUTEUR) * 0.35)
+    
+    # Mettre à jour les positions liées au cercle
+    config.POSITION_X_INITIALE = config.CERCLE_CENTRE_X + config.CERCLE_RAYON
+    config.POSITION_Y_INITIALE = config.CERCLE_CENTRE_Y
+    config.CURSEUR_X_APRES_CLIC = config.CERCLE_CENTRE_X
+    config.CURSEUR_Y_APRES_CLIC = config.CERCLE_CENTRE_Y
     
     # Créer la fenêtre en plein écran
     ecran = pygame.display.set_mode((config.LARGEUR, config.HAUTEUR), pygame.FULLSCREEN)

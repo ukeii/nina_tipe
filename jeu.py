@@ -1,6 +1,7 @@
 """
 Module principal du jeu - Gère la boucle de jeu
 """
+import math
 import pygame
 import sys
 import config
@@ -19,7 +20,7 @@ class Jeu:
         """
         self.ecran = ecran
         
-        # Positionner le curseur en bas de la fenêtre au démarrage du jeu
+        # Positionner le curseur au centre du cercle au démarrage du jeu
         pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         
         # Position précédente du curseur pour détecter la traversée
@@ -31,6 +32,8 @@ class Jeu:
             config.POSITION_Y_INITIALE,
             config.RAYON_CIBLE
         )
+        # Positionner immédiatement la cible sur le cercle pour varier les apparitions
+        self.cible.generer_nouvelle_position_sur_cercle()
         
         # État du jeu
         self.running = True
@@ -48,9 +51,9 @@ class Jeu:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
     
-    def detecter_traversee_ligne(self, position_actuelle):
+    def detecter_traversee_cercle(self, position_actuelle):
         """
-        Détecte si le curseur a traversé la ligne horizontale au niveau de la cible
+        Détecte si le curseur a traversé le cercle imaginaire
         
         Args:
             position_actuelle: Tuple (x, y) de la position actuelle du curseur
@@ -61,25 +64,38 @@ class Jeu:
         if self.en_affichage_resultat:
             return None
         
-        x_actuel, y_actuel = position_actuelle
-        x_precedent, y_precedent = self.position_curseur_precedente
-        y_ligne = self.cible.y
+        x0, y0 = self.position_curseur_precedente
+        x1, y1 = position_actuelle
+        if x0 == x1 and y0 == y1:
+            return None
         
-        # Vérifier si le curseur a traversé la ligne horizontale
-        # Le curseur démarre en bas, donc on détecte principalement quand il monte au-dessus
-        if y_precedent != y_actuel:  # Éviter division par zéro
-            # Cas 1: Le curseur monte et traverse la ligne (de bas en haut)
-            if y_precedent > y_ligne and y_actuel <= y_ligne:
-                # Calculer le point exact de traversée (interpolation linéaire)
-                t = (y_ligne - y_precedent) / (y_actuel - y_precedent)
-                x_traversee = x_precedent + t * (x_actuel - x_precedent)
-                return (int(x_traversee), int(y_ligne))
-            # Cas 2: Le curseur descend et traverse la ligne (de haut en bas)
-            elif y_precedent < y_ligne and y_actuel >= y_ligne:
-                # Calculer le point exact de traversée (interpolation linéaire)
-                t = (y_ligne - y_precedent) / (y_actuel - y_precedent)
-                x_traversee = x_precedent + t * (x_actuel - x_precedent)
-                return (int(x_traversee), int(y_ligne))
+        cx, cy = config.CERCLE_CENTRE_X, config.CERCLE_CENTRE_Y
+        r = config.CERCLE_RAYON
+        
+        dx = x1 - x0
+        dy = y1 - y0
+        fx = x0 - cx
+        fy = y0 - cy
+        
+        a = dx * dx + dy * dy
+        if a == 0:
+            return None
+        b = 2 * (fx * dx + fy * dy)
+        c = fx * fx + fy * fy - r * r
+        
+        discriminant = b * b - 4 * a * c
+        if discriminant < 0:
+            return None
+        
+        sqrt_disc = math.sqrt(discriminant)
+        t1 = (-b - sqrt_disc) / (2 * a)
+        t2 = (-b + sqrt_disc) / (2 * a)
+        
+        for t in sorted((t1, t2)):
+            if 0 <= t <= 1:
+                x_traversee = x0 + t * dx
+                y_traversee = y0 + t * dy
+                return (int(x_traversee), int(y_traversee))
         
         return None
     
@@ -108,8 +124,8 @@ class Jeu:
         # Obtenir la position actuelle du curseur
         position_actuelle = pygame.mouse.get_pos()
         
-        # Détecter la traversée de la ligne
-        point_traversee = self.detecter_traversee_ligne(position_actuelle)
+        # Détecter la traversée du cercle
+        point_traversee = self.detecter_traversee_cercle(position_actuelle)
         if point_traversee:
             self.gerer_traversee(point_traversee)
         
@@ -120,8 +136,8 @@ class Jeu:
         if self.en_affichage_resultat:
             temps_ecoule = pygame.time.get_ticks() - self.temps_debut_resultat
             if temps_ecoule >= config.DUREE_AFFICHAGE_RESULTAT:
-                # Générer une nouvelle cible
-                self.cible.generer_nouvelle_position_x()
+                # Générer une nouvelle cible sur le cercle
+                self.cible.generer_nouvelle_position_sur_cercle()
                 print(f"Nouvelle cible à la position: x={self.cible.x}, y={self.cible.y}")
                 
                 # Réinitialiser l'état
@@ -129,7 +145,7 @@ class Jeu:
                 self.point_traversee = None
                 self.cible_precedente = None
                 
-                # Repositionner le curseur en bas de la fenêtre
+                # Repositionner le curseur au centre du cercle
                 pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
                 self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
     
@@ -137,6 +153,14 @@ class Jeu:
         """Dessine tous les éléments du jeu"""
         # Remplir l'écran avec le fond
         self.ecran.fill(config.BLEU_CIEL)
+        # Dessiner le cercle imaginaire (visible provisoirement)
+        pygame.draw.circle(
+            self.ecran,
+            config.NOIR,
+            (config.CERCLE_CENTRE_X, config.CERCLE_CENTRE_Y),
+            config.CERCLE_RAYON,
+            2
+        )
         
         if self.en_affichage_resultat:
             # Mode affichage du résultat : afficher le point de traversée et la cible précédente

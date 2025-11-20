@@ -1,6 +1,7 @@
 """
 Module pour gérer la cible du jeu
 """
+import math
 import pygame
 import random
 import config
@@ -88,7 +89,9 @@ class Cible:
         distance = ((clic_x - self.x) ** 2 + (clic_y - self.y) ** 2) ** 0.5
         return distance <= self.rayon
     
-    def generer_nouvelle_position_x(self):
-        """Génère une nouvelle position x aléatoire (y reste inchangé)"""
-        self.x = random.randint(self.rayon, config.LARGEUR - self.rayon)
+    def generer_nouvelle_position_sur_cercle(self):
+        """Positionne la cible à un angle aléatoire sur le cercle imaginaire"""
+        angle = random.uniform(0, 2 * math.pi)
+        self.x = int(config.CERCLE_CENTRE_X + config.CERCLE_RAYON * math.cos(angle))
+        self.y = int(config.CERCLE_CENTRE_Y + config.CERCLE_RAYON * math.sin(angle))
 

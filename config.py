@@ -12,6 +12,11 @@ def obtenir_dimensions_ecran():
 LARGEUR = 1920  # Valeur par défaut, sera mise à jour
 HAUTEUR = 1080  # Valeur par défaut, sera mise à jour
 
+# Paramètres du cercle imaginaire (définis après l'initialisation)
+CERCLE_CENTRE_X = None
+CERCLE_CENTRE_Y = None
+CERCLE_RAYON = None
+
 # Couleurs
 BLANC = (255, 255, 255)
 ROUGE = (255, 0, 0)
