@@ -22,11 +22,13 @@ class Menu:
         self.font_titre = pygame.font.Font(None, taille_titre)
         self.font_bouton = pygame.font.Font(None, taille_bouton)
         
-        # Dimensions du bouton Start (proportionnelles à l'écran)
+        # Dimensions des boutons (proportionnelles à l'écran)
         self.bouton_largeur = int(config.LARGEUR * 0.25)
         self.bouton_hauteur = int(config.HAUTEUR * 0.1)
         self.bouton_x = config.LARGEUR // 2 - self.bouton_largeur // 2
-        self.bouton_y = config.HAUTEUR // 2 + int(config.HAUTEUR * 0.08)
+        self.bouton_y_start = config.HAUTEUR // 2 + int(config.HAUTEUR * 0.08)
+        self.espacement_boutons = int(config.HAUTEUR * 0.05)
+        self.bouton_y_config = self.bouton_y_start + self.bouton_hauteur + self.espacement_boutons
     
     def dessiner(self):
         """Dessine le menu"""
@@ -39,38 +41,64 @@ class Menu:
         self.ecran.blit(titre, titre_rect)
         
         # Bouton Start
-        bouton_rect = pygame.Rect(
+        bouton_start_rect = pygame.Rect(
             self.bouton_x,
-            self.bouton_y,
+            self.bouton_y_start,
             self.bouton_largeur,
             self.bouton_hauteur
         )
-        pygame.draw.rect(self.ecran, config.ROUGE, bouton_rect)
-        pygame.draw.rect(self.ecran, config.NOIR, bouton_rect, 3)
+        pygame.draw.rect(self.ecran, config.ROUGE, bouton_start_rect)
+        pygame.draw.rect(self.ecran, config.NOIR, bouton_start_rect, 3)
         
-        # Texte du bouton
-        texte_bouton = self.font_bouton.render("START", True, config.BLANC)
-        texte_rect = texte_bouton.get_rect(center=bouton_rect.center)
-        self.ecran.blit(texte_bouton, texte_rect)
+        # Texte du bouton Start
+        texte_start = self.font_bouton.render("START", True, config.BLANC)
+        texte_rect = texte_start.get_rect(center=bouton_start_rect.center)
+        self.ecran.blit(texte_start, texte_rect)
+        
+        # Bouton Config
+        bouton_config_rect = pygame.Rect(
+            self.bouton_x,
+            self.bouton_y_config,
+            self.bouton_largeur,
+            self.bouton_hauteur
+        )
+        pygame.draw.rect(self.ecran, (100, 100, 200), bouton_config_rect)  # Bleu
+        pygame.draw.rect(self.ecran, config.NOIR, bouton_config_rect, 3)
+        
+        # Texte du bouton Config
+        texte_config = self.font_bouton.render("CONFIG", True, config.BLANC)
+        texte_rect = texte_config.get_rect(center=bouton_config_rect.center)
+        self.ecran.blit(texte_config, texte_rect)
     
     def est_sur_bouton(self, position):
         """
-        Vérifie si la position est sur le bouton Start
+        Vérifie si la position est sur un des boutons
         
         Args:
             position: Tuple (x, y) de la position
             
         Returns:
-            True si la position est sur le bouton, False sinon
+            "start", "config" ou None
         """
         x, y = position
-        bouton_rect = pygame.Rect(
+        bouton_start_rect = pygame.Rect(
             self.bouton_x,
-            self.bouton_y,
+            self.bouton_y_start,
             self.bouton_largeur,
             self.bouton_hauteur
         )
-        return bouton_rect.collidepoint(x, y)
+        bouton_config_rect = pygame.Rect(
+            self.bouton_x,
+            self.bouton_y_config,
+            self.bouton_largeur,
+            self.bouton_hauteur
+        )
+        
+        if bouton_start_rect.collidepoint(x, y):
+            return "start"
+        elif bouton_config_rect.collidepoint(x, y):
+            return "config"
+        return None
     
     def est_clique_sur_bouton(self, position_clic):
         """
@@ -80,39 +108,71 @@ class Menu:
             position_clic: Tuple (x, y) de la position du clic
             
         Returns:
-            True si le clic est sur le bouton, False sinon
+            "start" si clic sur Start, None sinon
         """
-        return self.est_sur_bouton(position_clic)
+        resultat = self.est_sur_bouton(position_clic)
+        return resultat == "start"
     
     def boucle_menu(self):
         """
-        Affiche le menu et attend un clic sur Start
+        Affiche le menu et attend un clic sur Start ou Config
         
         Returns:
             True si le jeu doit démarrer, False pour quitter
         """
+        from interface_config import InterfaceConfig
+        
         running = True
+        interface_config = None
         
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return False
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return False
+                    if interface_config:
+                        # Gérer les événements de l'interface de config
+                        resultat = interface_config.gerer_evenement(event)
+                        if resultat == "sauvegarder":
+                            if interface_config.sauvegarder_config():
+                                interface_config = None
+                            # Sinon, rester dans l'interface (erreur de validation)
+                        elif resultat == "annuler":
+                            interface_config = None
+                    elif event.key == pygame.K_ESCAPE:
+                        if interface_config:
+                            interface_config = None
+                        else:
+                            return False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Clic gauche
-                        if self.est_clique_sur_bouton(event.pos):
-                            return True
+                        if interface_config:
+                            # Gérer les événements de l'interface de config
+                            resultat = interface_config.gerer_evenement(event)
+                            if resultat == "sauvegarder":
+                                if interface_config.sauvegarder_config():
+                                    interface_config = None
+                            elif resultat == "annuler":
+                                interface_config = None
+                        else:
+                            # Vérifier les boutons du menu
+                            bouton = self.est_sur_bouton(event.pos)
+                            if bouton == "start":
+                                return True
+                            elif bouton == "config":
+                                interface_config = InterfaceConfig(self.ecran)
             
-            # Gérer le curseur au survol du bouton
-            position_souris = pygame.mouse.get_pos()
-            if self.est_sur_bouton(position_souris):
-                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
-            else:
-                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+            # Gérer le curseur au survol des boutons
+            if not interface_config:
+                position_souris = pygame.mouse.get_pos()
+                if self.est_sur_bouton(position_souris):
+                    pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
+                else:
+                    pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             
             self.dessiner()
+            if interface_config:
+                interface_config.dessiner()
             pygame.display.flip()
         
         return False
