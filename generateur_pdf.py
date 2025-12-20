@@ -104,7 +104,48 @@ class GenerateurPDF:
                     ax.set_xlim(0, config.LARGEUR)
                     ax.set_ylim(config.HAUTEUR, 0)  # Inverser Y pour correspondre aux coordonnées pygame (0,0 en haut)
                     ax.set_title(f'Essai {i+1} / {len(donnees_chemins)}', fontsize=14, fontweight='bold')
-                    ax.grid(True, alpha=0.3)
+                    
+                    # Ajouter les axes avec graduations
+                    ax.set_xlabel('Abscisse (X)', fontsize=10)
+                    ax.set_ylabel('Ordonnée (Y)', fontsize=10)
+                    ax.tick_params(axis='both', which='major', labelsize=8)
+                    
+                    # Activer la grille
+                    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+                    ax.set_axisbelow(True)
+                    
+                    # Afficher les coordonnées de la cible
+                    info_texte = f"Cible: ({cible_x}, {cible_y})"
+                    if donnees['point_traversee']:
+                        info_texte += f"\nPoint touché: ({pt_x}, {pt_y})"
+                    
+                    # Ajouter une boîte de texte avec les coordonnées
+                    ax.text(0.02, 0.98, info_texte,
+                           transform=ax.transAxes,
+                           fontsize=9,
+                           verticalalignment='top',
+                           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
+                           family='monospace')
+                    
+                    # Annoter la cible avec ses coordonnées
+                    ax.annotate(f'({cible_x}, {cible_y})',
+                               xy=(cible_x, cible_y),
+                               xytext=(10, 10),
+                               textcoords='offset points',
+                               fontsize=8,
+                               bbox=dict(boxstyle='round,pad=0.3', facecolor='lightcoral', alpha=0.7),
+                               arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0', color='red', lw=1))
+                    
+                    # Annoter le point de traversée avec ses coordonnées
+                    if donnees['point_traversee']:
+                        ax.annotate(f'({pt_x}, {pt_y})',
+                                   xy=(pt_x, pt_y),
+                                   xytext=(10, -20),
+                                   textcoords='offset points',
+                                   fontsize=8,
+                                   bbox=dict(boxstyle='round,pad=0.3', facecolor='lightgreen', alpha=0.7),
+                                   arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0', color='green', lw=1))
+                    
                     ax.legend(loc='upper right', fontsize=8)
                     
                     # Ajouter la page au PDF
