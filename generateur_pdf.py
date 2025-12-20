@@ -53,7 +53,7 @@ class GenerateurPDF:
         try:
             with PdfPages(nom_fichier_complet) as pdf:
                 for i, donnees in enumerate(donnees_chemins):
-                    # Calculer la durée du mouvement et échantillonner les points tous les 20 ms
+                    # Calculer la durée du mouvement et échantillonner les points tous les 50 ms
                     duree_ms = 0
                     points_echantillones = []
                     
@@ -62,8 +62,8 @@ class GenerateurPDF:
                         chemin = donnees['chemin']
                         duree_ms = temps_chemin[-1] if temps_chemin else 0
                         
-                        # Échantillonner les points tous les 20 ms
-                        temps_echantillonnage = list(range(0, int(duree_ms) + 20, 20))
+                        # Échantillonner les points tous les 50 ms
+                        temps_echantillonnage = list(range(0, int(duree_ms) + 50, 50))
                         points_echantillones = []
                         
                         for t_ech in temps_echantillonnage:
@@ -83,8 +83,8 @@ class GenerateurPDF:
                         chemin = donnees['chemin']
                         # Estimer ~16ms par point (60 FPS)
                         duree_ms = len(chemin) * 16
-                        # Échantillonner tous les 20ms
-                        intervalle_points = max(1, len(chemin) // (int(duree_ms) // 20 + 1))
+                        # Échantillonner tous les 50ms
+                        intervalle_points = max(1, len(chemin) // (int(duree_ms) // 50 + 1))
                         for idx in range(0, len(chemin), intervalle_points):
                             x, y = chemin[idx]
                             t_estime = idx * 16
