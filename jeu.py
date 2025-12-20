@@ -41,10 +41,6 @@ class Jeu:
         # Compteur de cibles
         self.nombre_cibles = 1  # On commence à 1 car on a déjà créé la première cible
         
-        # Démarrer l'enregistrement du chemin pour la première cible
-        self.enregistrement_chemin = True
-        self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
-        
         # État du jeu
         self.running = True
         self.en_affichage_resultat = False
@@ -57,9 +53,10 @@ class Jeu:
         self.position_deviée_actuelle = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         
         # Enregistrement des données pour le PDF
-        self.donnees_chemins = []  # Liste de dictionnaires avec chemin, cible, point_traversee
-        self.chemin_actuel = []  # Liste des positions du curseur pour la tentative actuelle
-        self.enregistrement_chemin = False  # Indique si on enregistre le chemin actuellement
+        self.donnees_chemins = []  # Liste de dictionnaires avec chemin, cible, point_traversee, temps_chemin
+        self.chemin_actuel = []  # Liste des tuples (x, y, temps_ms) du curseur pour la tentative actuelle
+        self.enregistrement_chemin = True  # Démarrer l'enregistrement pour la première cible
+        self.temps_debut_chemin = pygame.time.get_ticks()  # Temps de début de l'enregistrement du chemin
         
         # Interface de fin de partie
         self.interface_fin = InterfaceFin(ecran)
@@ -175,11 +172,19 @@ class Jeu:
         
         # Arrêter l'enregistrement du chemin et sauvegarder les données
         if self.enregistrement_chemin:
-            # Ajouter le point de traversée au chemin
-            self.chemin_actuel.append(point_traversee)
+            # Ajouter le point de traversée au chemin avec son timestamp
+            temps_actuel = pygame.time.get_ticks()
+            temps_relatif = temps_actuel - self.temps_debut_chemin
+            self.chemin_actuel.append((point_traversee[0], point_traversee[1], temps_relatif))
+            
+            # Extraire les chemins (x, y) et les timestamps séparément pour compatibilité
+            chemin_xy = [(p[0], p[1]) for p in self.chemin_actuel]
+            temps_chemin = [p[2] for p in self.chemin_actuel]
+            
             # Sauvegarder les données de cette tentative
             self.donnees_chemins.append({
-                'chemin': self.chemin_actuel.copy(),
+                'chemin': chemin_xy.copy(),
+                'temps_chemin': temps_chemin.copy(),  # Liste des temps relatifs en ms
                 'cible': (self.cible.x, self.cible.y),
                 'point_traversee': point_traversee
             })
@@ -231,10 +236,12 @@ class Jeu:
         
         # Enregistrer le chemin du curseur si on n'est pas en affichage de résultat
         if not self.en_affichage_resultat and self.enregistrement_chemin:
-            # Ajouter la position déviée au chemin (éviter les doublons si le curseur ne bouge pas)
+            # Ajouter la position déviée au chemin avec son timestamp (éviter les doublons si le curseur ne bouge pas)
             if (not self.chemin_actuel or 
-                position_actuelle != self.chemin_actuel[-1]):
-                self.chemin_actuel.append(position_actuelle)
+                (position_actuelle[0], position_actuelle[1]) != (self.chemin_actuel[-1][0], self.chemin_actuel[-1][1])):
+                temps_actuel = pygame.time.get_ticks()
+                temps_relatif = temps_actuel - self.temps_debut_chemin
+                self.chemin_actuel.append((position_actuelle[0], position_actuelle[1], temps_relatif))
         
         # Détecter la traversée du cercle avec la position déviée
         point_traversee = self.detecter_traversee_cercle(position_actuelle)
@@ -271,7 +278,8 @@ class Jeu:
                     
                     # Démarrer l'enregistrement du chemin pour la nouvelle tentative
                     self.enregistrement_chemin = True
-                    self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
+                    self.temps_debut_chemin = pygame.time.get_ticks()
+                    self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC, 0)]
     
     def dessiner(self):
         """Dessine tous les éléments du jeu"""
@@ -368,7 +376,8 @@ class Jeu:
         
         # Démarrer l'enregistrement pour la première cible
         self.enregistrement_chemin = True
-        self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)]
+        self.temps_debut_chemin = pygame.time.get_ticks()
+        self.chemin_actuel = [(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC, 0)]
     
     def appliquer_deviation_mouvement(self, position_reelle):
         """

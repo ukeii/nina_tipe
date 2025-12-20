@@ -23,6 +23,7 @@ class GenerateurPDF:
         Args:
             donnees_chemins: Liste de dictionnaires contenant:
                 - 'chemin': Liste de tuples (x, y) du chemin du curseur
+                - 'temps_chemin': Liste des temps relatifs en ms pour chaque point du chemin
                 - 'cible': Tuple (x, y) de la position de la cible
                 - 'point_traversee': Tuple (x, y) du point de traversée
             nom_fichier: Nom du fichier (sans extension). Si None, utilise un timestamp
@@ -52,8 +53,50 @@ class GenerateurPDF:
         try:
             with PdfPages(nom_fichier_complet) as pdf:
                 for i, donnees in enumerate(donnees_chemins):
-                    # Créer une figure pour chaque chemin
-                    fig, ax = plt.subplots(figsize=(8, 8))
+                    # Calculer la durée du mouvement et échantillonner les points tous les 20 ms
+                    duree_ms = 0
+                    points_echantillones = []
+                    
+                    if 'temps_chemin' in donnees and donnees['temps_chemin']:
+                        temps_chemin = donnees['temps_chemin']
+                        chemin = donnees['chemin']
+                        duree_ms = temps_chemin[-1] if temps_chemin else 0
+                        
+                        # Échantillonner les points tous les 20 ms
+                        temps_echantillonnage = list(range(0, int(duree_ms) + 20, 20))
+                        points_echantillones = []
+                        
+                        for t_ech in temps_echantillonnage:
+                            # Trouver le point le plus proche de ce temps
+                            if t_ech <= temps_chemin[-1]:
+                                # Trouver l'index du point le plus proche
+                                idx = min(range(len(temps_chemin)), 
+                                         key=lambda i: abs(temps_chemin[i] - t_ech))
+                                x, y = chemin[idx]
+                                points_echantillones.append({
+                                    'temps_ms': t_ech,
+                                    'x': int(x),
+                                    'y': int(y)
+                                })
+                    elif donnees['chemin']:
+                        # Si pas de timestamps, utiliser une estimation basée sur le nombre de points
+                        chemin = donnees['chemin']
+                        # Estimer ~16ms par point (60 FPS)
+                        duree_ms = len(chemin) * 16
+                        # Échantillonner tous les 20ms
+                        intervalle_points = max(1, len(chemin) // (int(duree_ms) // 20 + 1))
+                        for idx in range(0, len(chemin), intervalle_points):
+                            x, y = chemin[idx]
+                            t_estime = idx * 16
+                            points_echantillones.append({
+                                'temps_ms': t_estime,
+                                'x': int(x),
+                                'y': int(y)
+                            })
+                    
+                    # PAGE 1 : Créer la figure pour le graphique
+                    fig_graph = plt.figure(figsize=(11, 8))
+                    ax = fig_graph.add_subplot(111)
                     
                     # Dessiner le cercle imaginaire
                     cercle = patches.Circle(
@@ -117,6 +160,7 @@ class GenerateurPDF:
                     # Afficher les coordonnées de la cible
                     info_texte = f"Cible: ({cible_x}, {cible_y})"
                     if donnees['point_traversee']:
+                        pt_x, pt_y = donnees['point_traversee']
                         info_texte += f"\nPoint touché: ({pt_x}, {pt_y})"
                     
                     # Ajouter une boîte de texte avec les coordonnées
@@ -148,10 +192,86 @@ class GenerateurPDF:
                     
                     ax.legend(loc='upper right', fontsize=8)
                     
-                    # Ajouter la page au PDF
+                    # Afficher la durée dans le titre ou dans une boîte de texte
+                    duree_texte = f"Durée du mouvement : {duree_ms:.0f} ms ({duree_ms/1000:.2f} s)"
+                    ax.text(0.98, 0.02, duree_texte,
+                           transform=ax.transAxes,
+                           fontsize=10,
+                           verticalalignment='bottom',
+                           horizontalalignment='right',
+                           bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8),
+                           family='monospace')
+                    
+                    # Sauvegarder la page du graphique
                     plt.tight_layout()
-                    pdf.savefig(fig, bbox_inches='tight')
-                    plt.close(fig)
+                    pdf.savefig(fig_graph, bbox_inches='tight')
+                    plt.close(fig_graph)
+                    
+                    # PAGE 2 : Créer la figure pour le tableau
+                    if points_echantillones:
+                        fig_table = plt.figure(figsize=(11, 8))
+                        ax_table = fig_table.add_subplot(111)
+                        ax_table.axis('off')
+                        
+                        
+                        # Préparer les données pour le tableau
+                        # Limiter à un nombre raisonnable de lignes pour la lisibilité
+                        max_lignes = 30
+                        if len(points_echantillones) > max_lignes:
+                            # Prendre les premiers et les derniers points
+                            points_affiches = (points_echantillones[:max_lignes//2] + 
+                                             points_echantillones[-max_lignes//2:])
+                            # Ajouter une ligne de séparation
+                            points_affiches.insert(max_lignes//2, {'temps_ms': '...', 'x': '...', 'y': '...'})
+                        else:
+                            points_affiches = points_echantillones
+                        
+                        # Créer le tableau
+                        tableau_data = [['Temps (ms)', 'X', 'Y']]
+                        for point in points_affiches:
+                            tableau_data.append([
+                                str(point['temps_ms']),
+                                str(point['x']),
+                                str(point['y'])
+                            ])
+                        
+                        table = ax_table.table(cellText=tableau_data[1:],
+                                              colLabels=tableau_data[0],
+                                              cellLoc='center',
+                                              loc='center',
+                                              colWidths=[0.3, 0.35, 0.35])
+                        
+                        # Styliser le tableau
+                        table.auto_set_font_size(False)
+                        table.set_fontsize(9)
+                        table.scale(1, 2)
+                        
+                        # Mettre en forme l'en-tête
+                        for i in range(3):
+                            table[(0, i)].set_facecolor('#4CAF50')
+                            table[(0, i)].set_text_props(weight='bold', color='white')
+                        
+                        # Alterner les couleurs des lignes
+                        for i in range(1, len(tableau_data)):
+                            for j in range(3):
+                                if i % 2 == 0:
+                                    table[(i, j)].set_facecolor('#f0f0f0')
+                                else:
+                                    table[(i, j)].set_facecolor('white')
+                        
+                        # Ajouter la durée en bas du tableau
+                        ax_table.text(0.5, 0.02, duree_texte,
+                                     transform=ax_table.transAxes,
+                                     fontsize=10,
+                                     verticalalignment='bottom',
+                                     horizontalalignment='center',
+                                     bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8),
+                                     family='monospace')
+                        
+                        # Sauvegarder la page du tableau
+                        plt.tight_layout()
+                        pdf.savefig(fig_table, bbox_inches='tight')
+                        plt.close(fig_table)
             
             print(f"PDF généré : {nom_fichier_complet}")
             print(f"Emplacement : {os.path.abspath(nom_fichier_complet)}")
