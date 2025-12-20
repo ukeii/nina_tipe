@@ -53,6 +53,9 @@ class Jeu:
         self.cible_precedente = None  # Position de la cible précédente pour l'affichage
         self.fin_de_partie = False  # Indique si on a atteint le nombre max de cibles
         
+        # Position déviée actuelle pour l'affichage du curseur
+        self.position_deviée_actuelle = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+        
         # Enregistrement des données pour le PDF
         self.donnees_chemins = []  # Liste de dictionnaires avec chemin, cible, point_traversee
         self.chemin_actuel = []  # Liste des positions du curseur pour la tentative actuelle
@@ -195,6 +198,8 @@ class Jeu:
         """Met à jour l'état du jeu"""
         # Si fin de partie, gérer le curseur au survol des boutons
         if self.fin_de_partie:
+            # Réafficher le curseur système pour la fin de partie
+            pygame.mouse.set_visible(True)
             if self.dialogue_actif:
                 # Ne pas changer le curseur pendant le dialogue
                 return
@@ -210,6 +215,15 @@ class Jeu:
         
         # Appliquer la déviation au mouvement si nécessaire
         position_actuelle = self.appliquer_deviation_mouvement(position_reelle)
+        
+        # Stocker la position déviée actuelle pour l'affichage
+        self.position_deviée_actuelle = position_actuelle
+        
+        # Masquer le curseur système si la déviation est active
+        if self.nombre_cibles >= config.CIBLE_DEBUT_DEVIATION:
+            pygame.mouse.set_visible(False)
+        else:
+            pygame.mouse.set_visible(True)
         
         # Stocker la position précédente déviée pour la détection de traversée
         if not hasattr(self, 'position_curseur_precedente_deviée'):
@@ -253,6 +267,7 @@ class Jeu:
                     pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
                     self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
                     self.position_curseur_precedente_deviée = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+                    self.position_deviée_actuelle = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
                     
                     # Démarrer l'enregistrement du chemin pour la nouvelle tentative
                     self.enregistrement_chemin = True
@@ -302,6 +317,10 @@ class Jeu:
         # Dessiner la pop-up de succès si active
         if self.popup_succes:
             self.dessiner_popup_succes()
+        
+        # Dessiner le curseur personnalisé si la déviation est active
+        if self.nombre_cibles >= config.CIBLE_DEBUT_DEVIATION and not self.fin_de_partie:
+            self.dessiner_curseur_personnalise()
     
     def boucle_principale(self):
         """Boucle principale du jeu"""
@@ -336,6 +355,11 @@ class Jeu:
         pygame.mouse.set_pos(config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         self.position_curseur_precedente = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
         self.position_curseur_precedente_deviée = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+        self.position_deviée_actuelle = (config.CURSEUR_X_APRES_CLIC, config.CURSEUR_Y_APRES_CLIC)
+        
+        # Réafficher le curseur système si nécessaire
+        if self.nombre_cibles < config.CIBLE_DEBUT_DEVIATION:
+            pygame.mouse.set_visible(True)
         
         # Réinitialiser les données
         self.donnees_chemins = []
@@ -440,3 +464,17 @@ class Jeu:
         texte = font.render("PDF créé avec succès", True, config.BLANC)
         texte_rect = texte.get_rect(center=popup_rect.center)
         self.ecran.blit(texte, texte_rect)
+    
+    def dessiner_curseur_personnalise(self):
+        """Dessine un curseur personnalisé à la position déviée"""
+        x, y = self.position_deviée_actuelle
+        
+        # Dessiner un curseur en forme de flèche simple
+        # Ligne verticale
+        pygame.draw.line(self.ecran, config.NOIR, (x, y - 10), (x, y + 10), 2)
+        # Ligne horizontale
+        pygame.draw.line(self.ecran, config.NOIR, (x - 10, y), (x + 10, y), 2)
+        # Point central
+        pygame.draw.circle(self.ecran, config.NOIR, (x, y), 3)
+        # Bordure blanche pour la visibilité
+        pygame.draw.circle(self.ecran, config.BLANC, (x, y), 4, 1)

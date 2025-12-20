@@ -26,7 +26,7 @@ BLEU_CIEL = (135, 206, 235)  # Couleur de fond
 VERT = (0, 255, 0)  # Couleur pour le point de traversée
 
 # Paramètres de la cible
-RAYON_CIBLE = 10
+RAYON_CIBLE = 20
 # POSITION_Y_INITIALE, POSITION_X_INITIALE, CURSEUR_X_APRES_CLIC, CURSEUR_Y_APRES_CLIC
 # seront calculées dans main.py après avoir obtenu les dimensions de l'écran
 POSITION_Y_INITIALE = None  # Sera calculée
@@ -41,7 +41,7 @@ DUREE_AFFICHAGE_RESULTAT = 500
 NOMBRE_CIBLES_MAX = 24
 
 # Paramètres de déviation du curseur
-CIBLE_DEBUT_DEVIATION = 10
-ANGLE_DEVIATION = 30
+CIBLE_DEBUT_DEVIATION = 5
+ANGLE_DEVIATION = 50
 DISTANCE_DEVIATION = 20  # Distance en pixels pour la déviation
 
