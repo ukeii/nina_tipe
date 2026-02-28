@@ -6,6 +6,10 @@ import pygame
 import random
 import config
 
+# 8 positions fixes sur le cercle, tous les 45° (0°, 45°, 90°, ..., 315°)
+# En radians, angle 0 = droite (3h), sens trigonométrique
+ANGLES_POSITIONS_FIXES = [i * (2 * math.pi / 8) for i in range(8)]
+
 
 class Cible:
     """Classe représentant une cible dans le jeu"""
@@ -22,6 +26,8 @@ class Cible:
         self.x = x
         self.y = y
         self.rayon = rayon
+        # File des indices (0..7) pour le bloc de 8 en cours ; vidée au redémarrage
+        self._indices_restants = []
     
     def dessiner(self, surface):
         """
@@ -89,9 +95,21 @@ class Cible:
         distance = ((clic_x - self.x) ** 2 + (clic_y - self.y) ** 2) ** 0.5
         return distance <= self.rayon
     
+    def reinitialiser_sequence(self):
+        """Vide la file des positions (à appeler au redémarrage d'une partie)."""
+        self._indices_restants = []
+
     def generer_nouvelle_position_sur_cercle(self):
-        """Positionne la cible à un angle aléatoire sur le cercle imaginaire"""
-        angle = random.uniform(0, 2 * math.pi)
+        """
+        Positionne la cible sur une des 8 positions fixes du cercle (tous les 45°).
+        Toutes les 8 apparitions, chaque position est utilisée exactement une fois,
+        l'ordre parmi les 8 étant aléatoire.
+        """
+        if not self._indices_restants:
+            self._indices_restants = list(range(8))
+            random.shuffle(self._indices_restants)
+        index = self._indices_restants.pop()
+        angle = ANGLES_POSITIONS_FIXES[index]
         self.x = int(config.CERCLE_CENTRE_X + config.CERCLE_RAYON * math.cos(angle))
         self.y = int(config.CERCLE_CENTRE_Y + config.CERCLE_RAYON * math.sin(angle))
 

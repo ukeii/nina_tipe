@@ -356,6 +356,8 @@ class Jeu:
         self.cible_precedente = None
         self.fin_de_partie = False
         
+        # Réinitialiser la séquence des 8 positions pour repartir sur un bloc neuf
+        self.cible.reinitialiser_sequence()
         # Générer une nouvelle cible
         self.cible.generer_nouvelle_position_sur_cercle()
         
