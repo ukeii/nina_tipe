@@ -108,6 +108,48 @@ class GenerateurPDF:
         # Créer le PDF avec matplotlib
         try:
             with PdfPages(nom_fichier_complet) as pdf:
+                # ----- Page 1 : Page de garde -----
+                fig_cover = plt.figure(figsize=(11, 8))
+                ax_cover = fig_cover.add_subplot(111)
+                ax_cover.set_xlim(0, 1)
+                ax_cover.set_ylim(0, 1)
+                ax_cover.axis('off')
+
+                # Fond discret
+                fig_cover.patch.set_facecolor('#f8f9fa')
+                ax_cover.set_facecolor('#f8f9fa')
+
+                # Titre principal : PDF des données de [nom du fichier]
+                nom_affiché = nom_fichier.replace('.pdf', '') if nom_fichier.endswith('.pdf') else nom_fichier
+                ax_cover.text(0.5, 0.70, "Rapport des données",
+                              transform=ax_cover.transAxes, fontsize=26, fontweight='bold',
+                              ha='center', va='center', color='#2c3e50')
+                ax_cover.text(0.5, 0.58, f"Données de : {nom_affiché}",
+                              transform=ax_cover.transAxes, fontsize=18, style='italic',
+                              ha='center', va='center', color='#34495e',
+                              bbox=dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor='#bdc3c7', alpha=0.9))
+
+                # Bloc paramètres de l'expérience
+                ax_cover.text(0.5, 0.42, "Paramètres de l'expérience",
+                              transform=ax_cover.transAxes, fontsize=16, fontweight='bold',
+                              ha='center', va='center', color='#2c3e50')
+
+                params_texte = (
+                    f"• Cible à partir de laquelle la déviation a commencé : {config.CIBLE_DEBUT_DEVIATION}\n\n"
+                    f"• Angle de déviation : {config.ANGLE_DEVIATION}°\n\n"
+                    f"• Durée d'affichage du résultat : {config.DUREE_AFFICHAGE_RESULTAT} ms ({config.DUREE_AFFICHAGE_RESULTAT / 1000:.2f} s)"
+                )
+                ax_cover.text(0.5, 0.22, params_texte,
+                              transform=ax_cover.transAxes, fontsize=13,
+                              ha='center', va='center', color='#34495e',
+                              bbox=dict(boxstyle='round,pad=0.8', facecolor='white', edgecolor='#3498db', alpha=0.95),
+                              family='monospace')
+
+                plt.tight_layout()
+                pdf.savefig(fig_cover, bbox_inches='tight', facecolor=fig_cover.get_facecolor())
+                plt.close(fig_cover)
+
+                # ----- Pages suivantes : graphiques par essai -----
                 for i, donnees in enumerate(donnees_chemins):
                     # Calculer la durée du mouvement (pour l'affichage sur le graphique)
                     duree_ms = 0
